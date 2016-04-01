@@ -3,4 +3,37 @@ title: Traffic Data Analysis
 output: html_document
 ---
 
-this is where things start :)
+---
+title: Traffic Data Analysis
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+```
+
+Reading the csv file:
+```{r}
+all.semi.unique <- read.csv("~/Downloads/all-semi-unique.csv", row.names=NULL)
+```
+
+Viewing the data
+```{r}
+View(all.semi.unique)
+```
+
+Plotting some columns to make sure they are the same in all rows
+```{r}
+plot(all.semi.unique$ad.fncl)
+plot(all.semi.unique$rd.nm)
+plot(all.semi.unique$ad.fncl)
+plot(all.semi.unique$ad.url)
+plot(all.semi.unique$ad.cm)
+plot(all.semi.unique$ad.logoAndroidH)
+plot(all.semi.unique$ad.logoAndroidS)
+```
+Removing columns with the same value for all raws as they won't make any difference
+```{r}
+all.semi.unique = all.semi.unique[, !names(all.semi.unique) %in% names(col_ct[col_ct==1])]
+```
