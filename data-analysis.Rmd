@@ -3,19 +3,14 @@ title: Traffic Data Analysis
 output: html_document
 ---
 
----
-title: Traffic Data Analysis
-output: html_document
----
-
 ```{r}
 library(ggplot2)
 library(dplyr)
 ```
 
-Reading the csv file:
+Reading the csv file and adding flag to not format strings as factors:
 ```{r}
-all.semi.unique <- read.csv("~/Downloads/all-semi-unique.csv", row.names=NULL)
+all.semi.unique <- read.csv("~/Downloads/all-semi-unique.csv", row.names=NULL,stringsAsFactors=FALSE)
 ```
 
 Viewing the data
@@ -33,7 +28,41 @@ plot(all.semi.unique$ad.cm)
 plot(all.semi.unique$ad.logoAndroidH)
 plot(all.semi.unique$ad.logoAndroidS)
 ```
+
 Removing columns with the same value for all raws as they won't make any difference
 ```{r}
+col_ct = sapply(all.semi.unique, function(x) length(unique(x)))
+cat("Constant feature count:", length(col_ct[col_ct==1]))
 all.semi.unique = all.semi.unique[, !names(all.semi.unique) %in% names(col_ct[col_ct==1])]
+```
+
+Viewing the unique values of road name to be able to know the set of places included in the data
+```{r}
+unique.rd.nm = distinct(select(all.semi.unique, rd.nm))
+```
+
+Foramting the crawl date in actual_date column with discarding seconds part as it's not considerd in time of report:
+```{r}
+all.semi.unique["actual_date"] <- NA
+all.semi.unique$actual_date <- strptime(all.semi.unique$crawl_date, "%a %b %d %H:%M", tz = "UTC")
+```
+
+Getting the actual date of report by subtracting rd.rp.hr and rd.rp.mn from th crawl date as rd.rp.hr and rd.rp.mn discribe the time between the crawling and report time:
+```{r}
+all.semi.unique$actual_date <- all.semi.unique$actual_date - all.semi.unique$rd.rp.hr * 3600 - all.semi.unique$rd.rp.mn * 60
+```
+
+Removing crawl date and time of report:
+```{r}
+names = c("crawl_date", "rd.rp.hr", "rd.rp.mn", "rd.hr", "rd.mn")
+all.semi.unique = all.semi.unique[, !names(all.semi.unique) %in% names]
+```
+
+Removing NA values
+```{r}
+all.semi.unique[is.na(all.semi.unique)] = -99999999
+all.semi.unique["rd.stid"][is.na(all.semi.unique["rd.stid"])] <- -999999
+all.semi.unique["rd.img"][is.na(all.semi.unique["rd.img"])] <- FALSE
+all.semi.unique["rd.hr"][is.na(all.semi.unique["rd.hr"])] <- 0
+all.semi.unique[c("rd.rp.img", "rd.rp.rpImg", "rd.rp.stid")][is.na(all.semi.unique[c("rd.rp.img", "rd.rp.rpImg", "rd.rp.stid")])] <- -9999999
 ```
