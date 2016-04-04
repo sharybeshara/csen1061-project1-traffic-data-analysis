@@ -58,11 +58,12 @@ names = c("crawl_date", "rd.rp.hr", "rd.rp.mn", "rd.hr", "rd.mn")
 all.semi.unique = all.semi.unique[, !names(all.semi.unique) %in% names]
 ```
 
-Removing NA values
+Removing NA values:
 ```{r}
 all.semi.unique[is.na(all.semi.unique)] = -99999999
-all.semi.unique["rd.stid"][is.na(all.semi.unique["rd.stid"])] <- -999999
-all.semi.unique["rd.img"][is.na(all.semi.unique["rd.img"])] <- FALSE
-all.semi.unique["rd.hr"][is.na(all.semi.unique["rd.hr"])] <- 0
-all.semi.unique[c("rd.rp.img", "rd.rp.rpImg", "rd.rp.stid")][is.na(all.semi.unique[c("rd.rp.img", "rd.rp.rpImg", "rd.rp.stid")])] <- -9999999
+```
+
+Removing duplicate values:
+```{r}
+ all.semi.unique = all.semi.unique[!duplicated(all.semi.unique), ]
 ```
