@@ -18,8 +18,6 @@ Viewing the data
 View(all.semi.unique)
 ```
 
-
-
 Removing columns with the same value for all raws as they won't make any difference
 ```{r}
 col_ct = sapply(all.semi.unique, function(x) length(unique(x)))
@@ -65,7 +63,7 @@ Removing duplicate values:
 all.semi.unique = all.semi.unique[!duplicated(all.semi.unique$rd.rp.cmid), ]
 ```
 
-while observing the data we could notice that we could use rd.ri as an indecator for rd.nm so to make sure that this holds:
+while observing the data we could notice that we could use rd.ri as an indecator for rd.nm so to make sure that this assumption holds:
 First we get the length of unique values in esch column:
 ```{r}
 length(unique(all.semi.unique$rd.ri))
@@ -81,15 +79,32 @@ View(p)
 ```
 Since the difference between them are only 2 values one of them called other roads which indicates that both of rd.ri represent unknown roads and the other one we could neglect.   
 
-From the html of by2olak website and by observing the data we could understand that rd.rp.stid represents the status of the road. However, many rows have NA value in this column. So we should try to eliminate these NAs. Since many of NA rows decribe question we could eliminate these NAs and give them value of 6 which describe question.
+From the html of by2olak website and by observing the data we could understand that rd.rp.stid represents the status of the road. However, many rows have NA value in this column. 
+```{r}
+sum(is.na(all.semi.unique$rd.rp.stid))
+```
+So we should try to eliminate these NAs. Since many of NA rows decribe question we could eliminate these NAs and give them value of 6 which describe question.
 ```{r}
 ques_rows = all.semi.unique %>% filter(is.na(rd.rp.stid))
 ques_rows = ques_rows[grep(pattern = "[?]", x = ques_rows$rd.rp.cm),]
 all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("[?]", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 6
+all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("[؟]", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 6
 ```
 
-Since many of NAs rows describe the radar status on the road which we can give them value of 7 which describes the presence of a radar 
+Since many of NAs rows describe the radar status on the road which we can give them value of 7 which describes the status of a radar 
 ```{r}
 all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("radar", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 7
-
+all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("رادار", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 7
+all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("ردار", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 7
+all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("rader", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 7
+all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("clear", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 7
+all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("كمين", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 7
+all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("تمام", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 7
+all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("لجنة", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 7
+all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("lagna", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 7
 ```
+Finding the highest comment status
+```{r}
+hist(all.semi.unique$rd.rp.stid)
+```
+
