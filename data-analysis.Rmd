@@ -18,16 +18,7 @@ Viewing the data
 View(all.semi.unique)
 ```
 
-Plotting some columns to make sure they are the same in all rows
-```{r}
-plot(all.semi.unique$ad.fncl)
-plot(all.semi.unique$rd.nm)
-plot(all.semi.unique$ad.fncl)
-plot(all.semi.unique$ad.url)
-plot(all.semi.unique$ad.cm)
-plot(all.semi.unique$ad.logoAndroidH)
-plot(all.semi.unique$ad.logoAndroidS)
-```
+
 
 Removing columns with the same value for all raws as they won't make any difference
 ```{r}
@@ -52,18 +43,53 @@ Getting the actual date of report by subtracting rd.rp.hr and rd.rp.mn from th c
 all.semi.unique$actual_date <- all.semi.unique$actual_date - all.semi.unique$rd.rp.hr * 3600 - all.semi.unique$rd.rp.mn * 60
 ```
 
+Formatting last modified date of road from the crawl date:
+```{r}
+all.semi.unique["road_date"] <- NA
+all.semi.unique$road_date <- strptime(all.semi.unique$crawl_date, "%a %b %d %H:%M", tz = "UTC")
+```
+
+Getting the last modified date of road by subtracting rd.hr and rd.mn from th crawl date as rd.hr and rd.mn discribe the time between the crawling and report time:
+```{r}
+all.semi.unique$road_date <- all.semi.unique$road_date - all.semi.unique$rd.hr * 3600 - all.semi.unique$rd.mn * 60
+```
+
 Removing crawl date and time of report:
 ```{r}
 names = c("crawl_date", "rd.rp.hr", "rd.rp.mn", "rd.hr", "rd.mn")
 all.semi.unique = all.semi.unique[, !names(all.semi.unique) %in% names]
 ```
 
-Removing NA values:
-```{r}
-all.semi.unique[is.na(all.semi.unique)] = -99999999
-```
-
 Removing duplicate values:
 ```{r}
- all.semi.unique = all.semi.unique[!duplicated(all.semi.unique), ]
+all.semi.unique = all.semi.unique[!duplicated(all.semi.unique$rd.rp.cmid), ]
+```
+
+while observing the data we could notice that we could use rd.ri as an indecator for rd.nm so to make sure that this holds:
+First we get the length of unique values in esch column:
+```{r}
+length(unique(all.semi.unique$rd.ri))
+length(unique(all.semi.unique$rd.nm))
+```
+
+Since they are almost similar we should get the difference between them
+```{r}
+a = select(all.semi.unique,rd.nm,rd.ri)
+a = unique(a)
+p = a[duplicated(a$rd.nm),]
+View(p)
+```
+Since the difference between them are only 2 values one of them called other roads which indicates that both of rd.ri represent unknown roads and the other one we could neglect.   
+
+From the html of by2olak website and by observing the data we could understand that rd.rp.stid represents the status of the road. However, many rows have NA value in this column. So we should try to eliminate these NAs. Since many of NA rows decribe question we could eliminate these NAs and give them value of 6 which describe question.
+```{r}
+ques_rows = all.semi.unique %>% filter(is.na(rd.rp.stid))
+ques_rows = ques_rows[grep(pattern = "[?]", x = ques_rows$rd.rp.cm),]
+all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("[?]", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 6
+```
+
+Since many of NAs rows describe the radar status on the road which we can give them value of 7 which describes the presence of a radar 
+```{r}
+all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("radar", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 7
+
 ```
