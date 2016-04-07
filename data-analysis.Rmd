@@ -33,10 +33,10 @@ unique.rd.nm = distinct(select(all.semi.unique, rd.nm))
 Foramting the crawl date in actual_date column with discarding seconds part as it's not considerd in time of report:
 ```{r}
 all.semi.unique["actual_date"] <- NA
-all.semi.unique$actual_date <- strptime(all.semi.unique$crawl_date, "%a %b %d %H:%M", tz = "UTC")
+all.semi.unique$actual_date <- as.POSIXlt(strptime(all.semi.unique$crawl_date, "%a %b %d %H:%M", tz = "UTC"))
 ```
 
-Getting the actual date of report by subtracting rd.rp.hr and rd.rp.mn from th crawl date as rd.rp.hr and rd.rp.mn discribe the time between the crawling and report time:
+Getting the actual date of report by subtracting rd.rp.hr and rd.rp.mn from th crawl date as rd.rp.hr and rd.rp.mn discribe the time between the crawling and report time which can be noticed from bey2ollak html:
 ```{r}
 all.semi.unique$actual_date <- all.semi.unique$actual_date - all.semi.unique$rd.rp.hr * 3600 - all.semi.unique$rd.rp.mn * 60
 ```
@@ -44,27 +44,33 @@ all.semi.unique$actual_date <- all.semi.unique$actual_date - all.semi.unique$rd.
 Formatting last modified date of road from the crawl date:
 ```{r}
 all.semi.unique["road_date"] <- NA
-all.semi.unique$road_date <- strptime(all.semi.unique$crawl_date, "%a %b %d %H:%M", tz = "UTC")
+all.semi.unique$road_date <- as.POSIXlt(strptime(all.semi.unique$crawl_date, "%a %b %d %H:%M", tz = "UTC"))
 ```
 
-Getting the last modified date of road by subtracting rd.hr and rd.mn from th crawl date as rd.hr and rd.mn discribe the time between the crawling and report time:
+Getting the last modified date of road by subtracting rd.hr and rd.mn from the crawl date as rd.hr and rd.mn discribe the time after the last modification of this road which can be noticed from bey2ollak html:
 ```{r}
 all.semi.unique$road_date <- all.semi.unique$road_date - all.semi.unique$rd.hr * 3600 - all.semi.unique$rd.mn * 60
 ```
 
-Removing crawl date and time of report:
+After formatting the actual date and the road date we can remove crawl date and time of report:
 ```{r}
 names = c("crawl_date", "rd.rp.hr", "rd.rp.mn", "rd.hr", "rd.mn")
 all.semi.unique = all.semi.unique[, !names(all.semi.unique) %in% names]
 ```
 
-Removing duplicate values:
+From the html of bey2ollak we can find that rd.rp.cmid is the id of each comment so we can remove it's duplicates:
 ```{r}
 all.semi.unique = all.semi.unique[!duplicated(all.semi.unique$rd.rp.cmid), ]
 ```
 
+Removing some columns that will not make any difference:
+```{r}
+names = c("rd.img","rd.rp.fullnm","rd.rp.rpImg")
+all.semi.unique = all.semi.unique[, !names(all.semi.unique) %in% names]
+```
+
 while observing the data we could notice that we could use rd.ri as an indecator for rd.nm so to make sure that this assumption holds:
-First we get the length of unique values in esch column:
+First we get the length of unique values in each column:
 ```{r}
 length(unique(all.semi.unique$rd.ri))
 length(unique(all.semi.unique$rd.nm))
@@ -77,12 +83,14 @@ a = unique(a)
 p = a[duplicated(a$rd.nm),]
 View(p)
 ```
+
 Since the difference between them are only 2 values one of them called other roads which indicates that both of rd.ri represent unknown roads and the other one we could neglect.   
 
-From the html of by2olak website and by observing the data we could understand that rd.rp.stid represents the status of the road. However, many rows have NA value in this column. 
+From the html of by2ollak website and by observing the data we could understand that rd.rp.stid represents the status of the road. However, many rows have NA value in this column. 
 ```{r}
 sum(is.na(all.semi.unique$rd.rp.stid))
 ```
+
 So we should try to eliminate these NAs. Since many of NA rows decribe question we could eliminate these NAs and give them value of 6 which describe question.
 ```{r}
 ques_rows = all.semi.unique %>% filter(is.na(rd.rp.stid))
@@ -103,8 +111,72 @@ all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("تمام",
 all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("لجنة", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 7
 all.semi.unique$rd.rp.stid[is.na(all.semi.unique$rd.rp.stid) & grepl("lagna", all.semi.unique$rd.rp.cm, ignore.case=TRUE)] <- 7
 ```
-Finding the highest comment status
+
+Finding the highest comment status:
 ```{r}
-hist(all.semi.unique$rd.rp.stid)
+hist(all.semi.unique$rd.rp.stid, main = "Status id")
+```
+Which means that the status id 2 which means ("lazeez") is the highest comment status
+
+By getting the highest congested hour we could find that at 16:00 is the highest congested hour and the least congested hour (0:00, 4:00) which makes sense    
+```{r}
+h = all.semi.unique  %>% filter(rd.rp.stid < 6) %>% mutate( hour = as.POSIXlt(actual_date)$hour) %>%group_by(hour) %>% summarize(mean=mean(rd.rp.stid)) %>% arrange(desc(mean))
+h
+qplot(x = hour, y = mean, data = h)
 ```
 
+Ploting the highest congested hour
+```{r}
+hist(as.numeric(as.POSIXlt(all.semi.unique$actual_date)$hour[all.semi.unique$rd.rp.stid == 4|all.semi.unique$rd.rp.stid == 5]), main = "Histogram of all hours",xlab="Hrs")
+```
+
+Finding the the highest road reported:
+```{r}
+highest_road_reported = (all.semi.unique %>% group_by(rd.nm) %>% summarize(s=length(rd.rp.cmid)) %>% arrange(desc(s)))$rd.nm
+head(highest_road_reported)
+```
+
+To find the highest congested road we can not use mean of the road status only as we need to consider the number of the comments:
+```{r}
+road_reported = all.semi.unique %>% filter(rd.rp.stid < 6) %>% group_by(rd.nm, rd.rp.stid) %>% summarize(s=length(rd.rp.cmid)) 
+```
+
+Then we can get the wighted mean by calculating the mean of the sum of each status of the road divided by the number of all comments which multiplied by the road status value:
+```{r}
+sum_of_all_comments = nrow(road_reported)
+weighted_congestion_of_road = road_reported %>% mutate(ws = (s/sum_of_all_comments*rd.rp.stid)) %>% group_by(rd.nm) %>% summarize(mean = mean(ws)) %>% arrange(desc(mean))
+head(weighted_congestion_of_road)
+```
+
+Plotting the mean status id for each road:
+```{r}
+qplot(x = rd.nm, y=mean, data =head(weighted_congestion_of_road))
+```
+
+To extract the speed of each road we filter the gps comments:
+```{r}
+gps_rows = all.semi.unique %>% filter(rd.rp.nm == "bey2ollakgps")
+```
+
+Then we add a new column represents the extracted speed from the gps comment:
+```{r}
+gps_rows$gps <-NA
+gps_rows$gps <- regmatches(gps_rows$rd.rp.cm, gregexpr("[[:digit:]]+ km/h", gps_rows$rd.rp.cm, perl=T))
+```
+
+Then we extract the speed number from the new column:
+```{r}
+for(i in 1:nrow(gps_rows))
+gps_rows[i,]["g"]<-regmatches(gps_rows[i,]["gps"][[1]][[1]], gregexpr("[[:digit:]]+", gps_rows[i,]["gps"][[1]][[1]], perl=T))
+```
+Then we remove unneeded rows and group them by road.nm to get the mean speed of each road:
+```{r}
+clear_gps_rows = gps_rows %>% filter(!(rd.nm == g))
+gps = clear_gps_rows %>% group_by(rd.nm) %>% summarize(mean = mean(as.numeric(g))) %>% arrange(mean)
+gps
+```
+
+plotting the minimum average speed:
+```{r}
+qplot(data = head(gps), x = rd.nm, y =mean )
+```
